@@ -109,7 +109,7 @@ export default function Menu() {
             MoonsDust
           </MenuItem>
           <MenuItem
-            href="https://t.me/RedditMoon"
+            href="https://t.me/MoonsDustOfficial"
             target="_blank"
             rel="noreferrer"
           >

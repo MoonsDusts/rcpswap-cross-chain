@@ -34,6 +34,7 @@ import { gasMargin } from "rcpswap/calculate"
 import confirmPriceImpactWithoutFee from "@/components/swap/confirmPriceImpactWithoutFee"
 import { useAddTransaction, finalizeTransaction } from "@rcpswap/dexie"
 import { useAddPopup } from "@/state/application/hooks"
+import { Symbiosis } from "@rcpswap/symbiosis"
 
 export default function SwapTradeButton() {
   const {
@@ -57,6 +58,11 @@ export default function SwapTradeButton() {
   } = useDerivedSwapTradeState()
 
   const { data, isInitialLoading: isLoading } = useSwapTrade()
+
+  const symbiosisRouter = new Symbiosis("mainnet", "rcpswap-cross-chaincp")
+  const metaRouterGateway = symbiosisRouter.config.chains.find(
+    (chain) => chain.id === chainId0
+  )?.metaRouterGateway
   const trade = data as UseTradeReturn
   const {
     data: symbiosis,
@@ -285,7 +291,11 @@ export default function SwapTradeButton() {
           >
             <Checker.ApproveERC20
               amount={parsedAmount}
-              contract={ROUTE_PROCESSOR_3_ADDRESS[chainId0]}
+              contract={
+                chainId0 !== chainId1
+                  ? ((metaRouterGateway ?? "") as `0x${string}`)
+                  : ROUTE_PROCESSOR_3_ADDRESS[chainId0]
+              }
             >
               {(approvalSubmitted, approvalState, approve) =>
                 approvalState === ApprovalState.NOT_APPROVED ||

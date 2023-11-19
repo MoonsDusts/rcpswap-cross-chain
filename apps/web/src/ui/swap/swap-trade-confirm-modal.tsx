@@ -201,6 +201,7 @@ export default function SwapTradeConfirmModal() {
 
   const handleSwap = useCallback(async () => {
     try {
+      console.log(tradeToConfirm, symbiosisTxError)
       if (
         (chainId0 === chainId1 && error) ||
         (chainId0 !== chainId1 && symbiosisTxError)

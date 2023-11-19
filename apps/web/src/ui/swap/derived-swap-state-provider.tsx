@@ -74,7 +74,7 @@ const DerivedSwapStateProvider: FC<DerivedSwapStateProviderProps> = ({
 
   const [chainId0, setChainId0] = useState<ChainId>(ChainId.ARBITRUM_NOVA)
   const [chainId1, setChainId1] = useState<ChainId>(ChainId.ARBITRUM_NOVA)
-  const [swapMode, setSwapMode] = useState(0)
+  const [swapMode, setSwapMode] = useState(1)
   const [swapAmount, setSwapAmount] = useState<string | undefined>()
   const [token0, setToken0] = useState<Type | undefined>(
     Native.onChain(ChainId.ARBITRUM_NOVA)
