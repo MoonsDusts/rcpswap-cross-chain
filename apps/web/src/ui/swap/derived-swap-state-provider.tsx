@@ -6,6 +6,7 @@ import {
   Symbiosis,
   TokenAmount as SymbiosisTokenAmount,
   Token as SymbiosisToken,
+  ErrorCode,
 } from "@rcpswap/symbiosis"
 import {
   FC,
@@ -27,11 +28,9 @@ import {
 import { Percent, ZERO } from "rcpswap/math"
 import { LiquidityProviders } from "@rcpswap/router"
 import { useQuery } from "@tanstack/react-query"
-import { WrappedTokenInfo, slippageAmount } from "rcpswap"
 import {
   convertAmountFromSymbiosis,
   convertAmountToSymbiosis,
-  convertTokenFromSymbiosis,
   convertTokenToSymbiosis,
 } from "@/utils"
 
@@ -311,7 +310,7 @@ const useSymbiosisTrade = () => {
       token1,
       parsedAmount,
       recipient,
-      slippageAmount,
+      allowedSlippage,
     ],
     queryFn: async () => {
       if (!token0 || !token1 || !parsedAmount) {
@@ -322,12 +321,13 @@ const useSymbiosisTrade = () => {
           fee: undefined,
           minAmountOut: undefined,
           transaction: undefined,
+          symbiosis: undefined,
         }
       }
       console.log("fetching.........")
-      const symbiosisSywapping = symbiosis.bestPoolSwapping()
+      const symbiosisSwapping = symbiosis.bestPoolSwapping()
 
-      const res = await symbiosisSywapping.exactIn({
+      const res = await symbiosisSwapping.exactIn({
         tokenAmountIn: convertAmountToSymbiosis(parsedAmount),
         tokenOut: convertTokenToSymbiosis(token1),
         from: address ?? "0xd52c556ecbd260cf3bf5b78f3f94d6878939adf7",
@@ -363,9 +363,11 @@ const useSymbiosisTrade = () => {
             ? convertAmountFromSymbiosis(res.fee)
             : undefined,
         transaction: res?.transactionRequest,
+        symbiosis: symbiosisSwapping,
       }
       return result
     },
+    retry: false,
     enabled: Boolean(parsedAmount?.greaterThan(ZERO) && chainId0 !== chainId1),
     refetchInterval: 60000,
     refetchOnWindowFocus: false,

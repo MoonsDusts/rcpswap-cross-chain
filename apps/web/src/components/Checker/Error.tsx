@@ -1,12 +1,12 @@
-"use client";
+"use client"
 
-import { FC } from "react";
-import { GreyCard } from "../Card";
-import { TYPE } from "@/theme";
+import { FC } from "react"
+import { GreyCard } from "../Card"
+import { TYPE } from "@/theme"
 
 interface CheckerProps {
-  error: string | undefined;
-  children: React.ReactNode;
+  error: string | undefined
+  children: React.ReactNode
 }
 
 const Error: FC<CheckerProps> = ({ error, children }) => {
@@ -15,9 +15,9 @@ const Error: FC<CheckerProps> = ({ error, children }) => {
       <GreyCard style={{ textAlign: "center" }}>
         <TYPE.main mb={"4px"}>{error}</TYPE.main>
       </GreyCard>
-    );
+    )
   }
-  return <>{children}</>;
-};
+  return <>{children}</>
+}
 
-export default Error;
+export default Error
