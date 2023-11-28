@@ -11,12 +11,14 @@ import {
   META_ROUTE_PROCESSOR_ADDRESS,
   ROUTE_PROCESSOR_3_ADDRESS,
 } from "rcpswap/config"
-import { mainnetConfig } from "@rcpswap/symbiosis"
 import { metaRouteProcessorAbi, routeProcessor2Abi } from "rcpswap/abi"
 import {
+  ApprovalState,
+  getEtherscanLink,
   getPublicClient,
   getShortenAddress,
   isAddress,
+  useTokenApproval,
   waitForTransaction,
 } from "@rcpswap/wagmi"
 import { Amount, tryParseAmount } from "rcpswap/currency"
@@ -26,12 +28,22 @@ import { RouteStatus } from "@rcpswap/tines"
 import { gasMargin } from "rcpswap"
 import confirmPriceImpactWithoutFee from "@/components/swap/confirmPriceImpactWithoutFee"
 import { getEthersTransactionReceipt } from "@/utils/getEthersTransactionReceipt"
-import { ethers } from "ethers"
-import { getAddress } from "viem"
+import { fetchBlockNumber } from "wagmi/actions"
+import { SYMBIOSIS_CONFIRMATION_BLOCK_COUNT } from "@/config"
+import { StepType } from "@/components/TransactionConfirmationModal"
+import { convertAmountFromSymbiosis } from "@/utils"
 
 export default function SwapTradeConfirmModal() {
   const {
-    state: { swapMode, recipient, chainId0, chainId1, swapAmount, token0 },
+    state: {
+      swapMode,
+      recipient,
+      chainId0,
+      chainId1,
+      swapAmount,
+      token0,
+      token1,
+    },
     mutate: { setSwapAmount },
   } = useDerivedSwapState()
 
@@ -46,8 +58,17 @@ export default function SwapTradeConfirmModal() {
 
   const parsedAmount = useMemo(
     () => tryParseAmount(swapAmount, token0),
-    [swapAmount, token0]
+    [token0, swapAmount]
   )
+
+  const [approvalState] = useTokenApproval({
+    amount: parsedAmount,
+    spender:
+      chainId0 !== chainId1
+        ? META_ROUTE_PROCESSOR_ADDRESS[chainId0]
+        : ROUTE_PROCESSOR_3_ADDRESS[chainId0],
+    enabled: Boolean(parsedAmount),
+  })
 
   const {
     state: {
@@ -56,6 +77,9 @@ export default function SwapTradeConfirmModal() {
       attemptingTxn,
       txHash,
       swapErrorMessage,
+      steps,
+      swapWarningMessage,
+      currencyToAdd,
     },
     mutate: {
       setTradeToConfirm,
@@ -63,6 +87,9 @@ export default function SwapTradeConfirmModal() {
       setSwapErrorMessage,
       setAttemptingTxn,
       setTxHash,
+      setSteps,
+      setSwapWarningMessage,
+      setCurrencyToAdd,
     },
   } = useDerivedSwapTradeState()
 
@@ -74,10 +101,12 @@ export default function SwapTradeConfirmModal() {
     args: tradeToConfirm?.writeArgs as any,
     enabled: Boolean(
       tradeToConfirm?.writeArgs &&
-        tradeToConfirm.route.status !== RouteStatus.NoWay
+        tradeToConfirm.route.status !== RouteStatus.NoWay &&
+        approvalState === ApprovalState.APPROVED
     ),
     value: tradeToConfirm?.value ?? 0n,
     staleTime: 5000,
+    cacheTime: 10000,
   })
 
   const { writeAsync } = useContractWrite({
@@ -92,10 +121,16 @@ export default function SwapTradeConfirmModal() {
         }
       : undefined,
     onSuccess: async (data) => {
-      console.log(data)
       setAttemptingTxn(false)
       setTxHash(data.hash)
       setSwapErrorMessage(undefined)
+      setSteps([
+        {
+          ...steps[0],
+          status: "success",
+          link: getEtherscanLink(chainId0, data.hash, "transaction"),
+        },
+      ])
 
       const baseText = `Swap ${tradeToConfirm?.amountIn?.toSignificant(3)} ${
         tradeToConfirm?.amountIn?.currency.symbol
@@ -113,7 +148,7 @@ export default function SwapTradeConfirmModal() {
       addTransaction(address ?? "", chainId0, data.hash, baseText)
 
       waitForTransaction({ hash: data.hash }).then((receipt) => {
-        finalizeTransaction(data.hash, receipt)
+        finalizeTransaction(data.hash, "success", receipt)
 
         addPopup(
           {
@@ -149,8 +184,13 @@ export default function SwapTradeConfirmModal() {
         symbiosis?.transaction?.data,
       ],
       value: token0?.isNative ? parsedAmount?.quotient ?? 0n : 0n,
-      enabled: Boolean(symbiosis && symbiosis.transaction),
+      enabled: Boolean(
+        symbiosis &&
+          symbiosis.transaction &&
+          approvalState === ApprovalState.APPROVED
+      ),
       staleTime: 5000,
+      cacheTime: 10000,
     })
 
   const { writeAsync: symbiosisWriteAsync } = useContractWrite({
@@ -182,64 +222,139 @@ export default function SwapTradeConfirmModal() {
           : ""
       }`
 
+      const newSteps: StepType[] = [
+        {
+          ...steps[0],
+          status: "success",
+          link: getEtherscanLink(chainId0, data.hash, "transaction"),
+        },
+        {
+          ...steps[1],
+          status: "pending",
+          currentRounds: 0,
+        },
+        ...steps.slice(2),
+      ]
+
+      setSteps(newSteps)
+
       addTransaction(address ?? "", chainId0, data.hash, baseText)
+      try {
+        waitForTransaction({ hash: data.hash })
+          .then(async (receipt) => {
+            const publicClient = getPublicClient({ chainId: chainId0 })
 
-      waitForTransaction({ hash: data.hash }).then(async (receipt) => {
-        await symbiosisRef.current?.symbiosis
-          ?.waitForComplete(getEthersTransactionReceipt(receipt))
-          .then(async (log: any) => {
-            console.log(log)
-            const swapData = symbiosisRef.current
-            if (!log || !swapData) return
-            const expectedTokenOut = swapData.amountOut?.currency
-
-            const transitTokenSent =
-              await symbiosisRef.current?.symbiosis?.findTransitTokenSent(
-                log.transactionHash
-              )
-
-            console.log(transitTokenSent)
-
-            let formatedText
-
-            if (transitTokenSent) {
-              formatedText = `Received ${transitTokenSent?.token?.symbol} instead of ${expectedTokenOut?.symbol} to avoid any loss due to an adverse exchange rate change on the destination network.`
-            } else {
-              formatedText = `Swap ${symbiosisRef.current?.amountIn?.toSignificant(
-                3
-              )} ${
-                symbiosisRef.current?.amountIn?.currency.symbol
-              } for ${symbiosisRef.current?.amountOut?.toSignificant(3)} ${
-                symbiosisRef.current?.amountOut?.currency.symbol
-              } ${
-                recipient !== undefined &&
-                recipient !== address &&
-                isAddress(recipient)
-                  ? `to ${getShortenAddress(recipient)}`
-                  : ""
-              }`
-            }
-
-            console.log(formatedText)
-
-            addPopup(
-              {
-                txn: {
-                  hash: log?.transactionHash,
-                  success: !transitTokenSent,
-                  summary: formatedText,
-                  chainId: expectedTokenOut?.chainId,
-                },
+            const currentBlockNo = await fetchBlockNumber({ chainId: chainId0 })
+            const unwatch = publicClient.watchBlockNumber({
+              onBlockNumber: (blockNo) => {
+                const offset = Number(blockNo - currentBlockNo)
+                if (offset >= SYMBIOSIS_CONFIRMATION_BLOCK_COUNT[chainId0]) {
+                  newSteps[1] = {
+                    ...newSteps[1],
+                    currentRounds: newSteps[1].totalRounds,
+                    status: "success",
+                  }
+                  newSteps[2] = { ...newSteps[2], status: "pending" }
+                  setSteps(newSteps)
+                } else {
+                  newSteps[1] = { ...newSteps[1], currentRounds: offset }
+                  setSteps(newSteps)
+                }
               },
-              log.transactionHash
-            )
-          })
+            })
 
-        finalizeTransaction(data.hash, receipt)
+            const symbiosisData = await symbiosisRef.current?.symbiosis
+              ?.waitForComplete(getEthersTransactionReceipt(receipt))
+              .then(async (log: any) => {
+                unwatch?.()
+                newSteps[1] = {
+                  ...newSteps[1],
+                  currentRounds: newSteps[1].totalRounds,
+                  status: "success",
+                }
+                newSteps[2] = { ...newSteps[2], status: "pending" }
+                setSteps(newSteps)
+                const swapData = symbiosisRef.current
+                if (!log || !swapData) return
+                const expectedTokenOut = swapData.amountOut?.currency
+
+                const transitTokenSent =
+                  await symbiosisRef.current?.symbiosis?.findTransitTokenSent(
+                    log.transactionHash
+                  )
+
+                let formatedText
+
+                if (transitTokenSent) {
+                  formatedText = `Received ${transitTokenSent?.token?.symbol} instead of ${expectedTokenOut?.symbol} to avoid any loss due to an adverse exchange rate change on the destination network.`
+                } else {
+                  formatedText = `Swap ${symbiosisRef.current?.amountIn?.toSignificant(
+                    3
+                  )} ${
+                    symbiosisRef.current?.amountIn?.currency.symbol
+                  } for ${symbiosisRef.current?.amountOut?.toSignificant(3)} ${
+                    symbiosisRef.current?.amountOut?.currency.symbol
+                  } ${
+                    recipient !== undefined &&
+                    recipient !== address &&
+                    isAddress(recipient)
+                      ? `to ${getShortenAddress(recipient)}`
+                      : ""
+                  }`
+                }
+
+                newSteps[2] = {
+                  ...newSteps[2],
+                  status: transitTokenSent ? "failed" : "success",
+                  link: getEtherscanLink(
+                    chainId1,
+                    log?.transactionHash,
+                    "transaction"
+                  ),
+                }
+                setSteps(newSteps)
+
+                addPopup(
+                  {
+                    txn: {
+                      hash: log?.transactionHash,
+                      success: !transitTokenSent,
+                      summary: formatedText,
+                      chainId: expectedTokenOut?.chainId,
+                    },
+                  },
+                  log.transactionHash
+                )
+
+                return { transitTokenSent, hash: log?.transactionHash }
+              })
+
+            finalizeTransaction(data.hash, "success", receipt)
+            if (symbiosisData?.transitTokenSent) {
+              setAttemptingTxn(false)
+              setTxHash(symbiosisData.hash)
+              setCurrencyToAdd(
+                convertAmountFromSymbiosis(symbiosisData.transitTokenSent)
+                  .currency
+              )
+              setSwapWarningMessage(
+                `Received ${symbiosisData?.transitTokenSent?.token?.symbol} instead of ${token1?.symbol} to avoid any loss due to an adverse exchange rate change on the destination network.`
+              )
+            }
+          })
+          .catch((err) => {
+            console.log(err)
+            finalizeTransaction(data.hash, "failed")
+            setAttemptingTxn(false)
+            setTxHash(data.hash)
+            setSwapErrorMessage("Failed to listen event")
+          })
+      } catch (err) {
+        finalizeTransaction(data.hash, "failed")
         setAttemptingTxn(false)
         setTxHash(data.hash)
-        setSwapErrorMessage(undefined)
-      })
+        setSwapErrorMessage("Failed to listen event")
+      }
     },
     onError: (error) => {
       setSwapErrorMessage(error.message)
@@ -262,7 +377,6 @@ export default function SwapTradeConfirmModal() {
 
   const handleSwap = useCallback(async () => {
     try {
-      console.log(symbiosisConfig, symbiosisTxError, symbiosis)
       if (
         (chainId0 === chainId1 && error) ||
         (chainId0 !== chainId1 && symbiosisTxError)
@@ -284,6 +398,39 @@ export default function SwapTradeConfirmModal() {
       setAttemptingTxn(true)
       setSwapErrorMessage(undefined)
       setTxHash(undefined)
+      setCurrencyToAdd(undefined)
+      setSwapWarningMessage(undefined)
+      setSteps(
+        chainId0 === chainId1
+          ? [
+              {
+                title: "Sending the transaction to Arbitrum Nova",
+                desc: "Explore the Sent Transaction",
+                status: "pending",
+              },
+            ]
+          : [
+              {
+                title: `Sending the transaction to ${
+                  chainId0 === 137 ? "Polygon" : "Arbitrum Nova"
+                }`,
+                desc: "Explore the Sent Transaction",
+                status: "pending",
+              },
+              {
+                title: `Waiting for the transaction to be mined...`,
+                desc: "Getting Block Confirmations",
+                totalRounds: SYMBIOSIS_CONFIRMATION_BLOCK_COUNT[chainId0],
+                currentRounds: 0,
+              },
+              {
+                title: `Getting ${token1?.symbol} on ${
+                  chainId1 === 137 ? "Polygon" : "Arbitrum Nova"
+                }`,
+                desc: "Check in the Explorer",
+              },
+            ]
+      )
 
       if (chainId0 === chainId1) await writeAsync?.()
       else {
@@ -317,7 +464,12 @@ export default function SwapTradeConfirmModal() {
       recipient={recipient}
       onConfirm={handleSwap}
       swapErrorMessage={swapErrorMessage}
+      swapWarningMessage={swapWarningMessage}
       onDismiss={handleConfirmDismiss}
+      isCross={chainId0 !== chainId1}
+      steps={steps}
+      chainId={chainId0 !== chainId1 ? chainId1 : undefined}
+      currencyToAdd={chainId0 !== chainId1 ? currencyToAdd : undefined}
     />
   )
 }

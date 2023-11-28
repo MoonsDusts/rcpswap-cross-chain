@@ -24,7 +24,7 @@ import AccountDetails from "../AccountDetails"
 import Modal from "../Modal"
 import Option from "./Option"
 import PendingView from "./PendingView"
-import { SUPPORTED_CONNECTORS } from "@/config"
+import { wallets } from "@rcpswap/wagmi"
 
 const CloseIcon = styled.div`
   position: absolute;
@@ -189,32 +189,34 @@ export default function WalletModal({
   ])
 
   const tryActivation = async (connector: Connector<any, any> | undefined) => {
+    const wallet = wallets.find((item) => item.id === connector?.id)
     setPendingWallet(connector) // set wallet for pending view
     setWalletView(WALLET_VIEWS.PENDING)
 
     connector &&
       connectAsync({ connector }).catch((error) => {
-        console.log(error)
-        setPendingError(true)
+        if (wallet?.deepLink && wallet?.installed === false) {
+          window.open(wallet.deepLink)
+        } else setPendingError(true)
       })
   }
 
   // get wallets user can switch too, depending on device/browser
   function getOptions() {
-    return connectors.map((item) => {
+    // console.log(wallets, connectors)
+    return wallets.map((wallet) => {
       return (
         <Option
           onClick={() => {
-            tryActivation(item)
+            tryActivation(wallet.connector)
           }}
-          id={`connect-${item.id}`}
-          key={item.id}
-          active={connector === item}
-          color={SUPPORTED_CONNECTORS[item.id].color}
-          link={SUPPORTED_CONNECTORS[item.id].href}
-          header={item.name}
+          id={`connect-${wallet.id}`}
+          key={wallet.id}
+          active={connector?.id === wallet.id}
+          color={wallet.color}
+          header={wallet.title}
           subheader={null}
-          icon={SUPPORTED_CONNECTORS[item.id].image}
+          icon={wallet.icon}
         ></Option>
       )
     })
