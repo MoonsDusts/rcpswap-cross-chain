@@ -104,7 +104,7 @@ function ConfirmationPendingContent({
         </AutoColumn>
       </PendingHeaderSection>
       <Section>
-        <Text>{successed ? "Swapped!" : `Swapping...`}</Text>
+        <Text>{successed ? "Done!" : `Swapping...`}</Text>
         {steps.map((step, i) => (
           <RowBetween key={i} align="start" marginTop={"24px"}>
             <Flex marginRight={"8px"} marginTop={"2px"} minWidth={"16px"}>

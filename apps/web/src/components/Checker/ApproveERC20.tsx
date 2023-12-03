@@ -4,6 +4,7 @@ import { FC, useEffect, useMemo, useState } from "react"
 import { Amount, Type, tryParseAmount } from "rcpswap/currency"
 import { ApprovalState, useTokenApproval } from "@rcpswap/wagmi"
 import { Address } from "wagmi"
+import { roundupAmount } from "@/utils"
 
 interface CheckerProps {
   amount: Amount<Type> | undefined
@@ -23,25 +24,14 @@ const ApproveERC20: FC<CheckerProps> = ({
   children,
 }) => {
   const [approvalSubmitted, setApprovalSubmitted] = useState(false)
-  const parsedAmount = useMemo(
-    () =>
-      tryParseAmount(
-        amount
-          ? parseFloat(amount.toExact()).toLocaleString("en", {
-              maximumFractionDigits: 12,
-              // @ts-ignore
-              roundingMode: "ceil",
-            })
-          : undefined,
-        amount?.currency
-      ),
-    [amount]
-  )
+
+  const rounded = roundupAmount(amount)
 
   const [state, { write }] = useTokenApproval({
-    amount: parsedAmount,
+    amount: rounded,
     spender: contract,
     enabled,
+    // approveMax: true,
   })
 
   useEffect(() => {

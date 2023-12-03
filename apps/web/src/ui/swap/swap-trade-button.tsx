@@ -15,6 +15,7 @@ import {
   getPublicClient,
   getShortenAddress,
   isAddress,
+  queryFnUseBalances,
   useAccount,
   useContractWrite,
   usePrepareContractWrite,
@@ -42,7 +43,7 @@ import confirmPriceImpactWithoutFee from "@/components/swap/confirmPriceImpactWi
 import { useAddTransaction, finalizeTransaction } from "@rcpswap/dexie"
 import { useAddPopup } from "@/state/application/hooks"
 import { ErrorCode, Symbiosis } from "@rcpswap/symbiosis"
-import { zeroAddress } from "viem"
+import { Address, TransactionExecutionError, zeroAddress } from "viem"
 import { ethers } from "ethers"
 import { getEthersTransactionReceipt } from "@/utils/getEthersTransactionReceipt"
 import { SYMBIOSIS_CONFIRMATION_BLOCK_COUNT } from "@/config"
@@ -69,6 +70,7 @@ export default function SwapTradeButton() {
       setSteps,
       setSwapWarningMessage,
       setCurrencyToAdd,
+      setSwapResult,
     },
   } = useDerivedSwapTradeState()
 
@@ -176,7 +178,11 @@ export default function SwapTradeButton() {
       })
     },
     onError: (error) => {
-      setSwapErrorMessage(error.message)
+      setSwapErrorMessage(
+        error instanceof TransactionExecutionError
+          ? "User rejected the transaction."
+          : "Transaction failed, this can be caused by prices changes - try increasing slippage"
+      )
       setAttemptingTxn(false)
       setTxHash(undefined)
     },
@@ -257,6 +263,16 @@ export default function SwapTradeButton() {
 
       setSteps(newSteps)
 
+      const beforeBalance = await queryFnUseBalances({
+        chainId: chainId1,
+        currencies: [token1],
+        account: (recipient ?? address) as Address,
+      }).then((res) =>
+        res && token1
+          ? res?.[token1.isNative ? zeroAddress : token1.address]
+          : undefined
+      )
+
       addTransaction(address ?? "", chainId0, data.hash, baseText)
 
       try {
@@ -308,9 +324,28 @@ export default function SwapTradeButton() {
                 if (transitTokenSent) {
                   formatedText = `Received ${transitTokenSent?.token?.symbol} instead of ${expectedTokenOut?.symbol} to avoid any loss due to an adverse exchange rate change on the destination network.`
                 } else {
-                  formatedText = `Swap ${symbiosisRef.current?.amountIn?.toSignificant(
-                    3
-                  )} ${
+                  const afterBalance = await queryFnUseBalances({
+                    chainId: chainId1,
+                    currencies: [token1],
+                    account: (recipient ?? address) as Address,
+                  }).then((res) =>
+                    res && token1
+                      ? res?.[token1.isNative ? zeroAddress : token1.address]
+                      : undefined
+                  )
+                  const result =
+                    afterBalance &&
+                    beforeBalance &&
+                    afterBalance.currency.equals(beforeBalance.currency)
+                      ? afterBalance.subtract(beforeBalance)
+                      : undefined
+                  setSwapResult(result)
+
+                  formatedText = `Swap ${
+                    result
+                      ? result.toSignificant(6)
+                      : symbiosisRef.current?.amountIn?.toSignificant(3)
+                  } ${
                     symbiosisRef.current?.amountIn?.currency.symbol
                   } for ${symbiosisRef.current?.amountOut?.toSignificant(3)} ${
                     symbiosisRef.current?.amountOut?.currency.symbol
@@ -376,7 +411,11 @@ export default function SwapTradeButton() {
       }
     },
     onError: (error) => {
-      setSwapErrorMessage(error.message)
+      setSwapErrorMessage(
+        error instanceof TransactionExecutionError
+          ? "User rejected the transaction."
+          : "Transaction failed, this can be caused by prices changes - try increasing slippages"
+      )
       setAttemptingTxn(false)
       setTxHash(undefined)
     },
@@ -402,9 +441,9 @@ export default function SwapTradeButton() {
         setShowConfirm(true)
         setTxHash(undefined)
       } else {
-        setAttemptingTxn(true)
         setSwapErrorMessage(undefined)
         setTxHash(undefined)
+        setSwapResult(undefined)
         setSwapWarningMessage(undefined)
         setCurrencyToAdd(undefined)
         if (
@@ -448,6 +487,7 @@ export default function SwapTradeButton() {
                 },
               ]
         )
+        setAttemptingTxn(true)
         if (chainId0 === chainId1) await writeAsync?.()
         else await symbiosisWriteAsync?.()
       }
@@ -466,6 +506,7 @@ export default function SwapTradeButton() {
     symbiosisWriteAsync,
     symbiosisConfig,
     symbiosisTxError,
+    approvalState,
   ])
 
   const isWrap = token0?.isNative && token1?.equals(token0.wrapped)

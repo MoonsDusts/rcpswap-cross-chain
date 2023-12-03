@@ -24,7 +24,7 @@ const PassiveTab = styled(TYPE.black)`
 const SwitchTitle = styled.div`
   display: flex;
   align-items: center;
-  cursor: pointer;
+  // cursor: pointer;
 `
 
 const FUSION_TEXT =
@@ -42,13 +42,14 @@ export default function SwapHeader() {
     <StyledSwapHeader>
       <RowBetween>
         <SwitchTitle>
-          <TYPE.black fontWeight={500} onClick={switchSwapMode} ml={"8px"}>
-            {swapMode === 0 ? "Swap" : "xFusion"}
+          <TYPE.black fontWeight={500} ml={"8px"}>
+            {/* {swapMode === 0 ? "Swap" : "xFusion"} */}
+            Swap
           </TYPE.black>
-          <QuestionHelper
+          {/* <QuestionHelper
             id="swap-mode-header"
             content={swapMode === 0 ? SWAP_TEXT : FUSION_TEXT}
-          />
+          /> */}
           {/* &nbsp;
           <span
             onClick={switchSwapMode}

@@ -21,6 +21,7 @@ import Menu from "../Menu"
 import Row, { RowFixed } from "../Row"
 import { YellowCard } from "../Card"
 import Web3Status from "../Web3Status"
+import { SUPPORTED_NETWORK_INFO } from "@/config"
 
 const HeaderFrame = styled.div`
   display: grid;
@@ -139,15 +140,21 @@ const BalanceText = styled.div`
   padding-left: 0.75rem;
   padding-right: 0.5rem;
   flex-shrink: 0;
-  ${({ theme }) => theme.mediaWidth.upToExtraSmall`
-    display: none;
-  `};
 `
 
 const NetworkLogo = styled.img`
   width: 20px;
   height: auto;
   margin-right: 6px;
+  ${({ theme }) => theme.mediaWidth.upToExtraSmall`
+    margin-right: 0;
+  `};
+`
+
+const Balance = styled.span`
+  ${({ theme }) => theme.mediaWidth.upToExtraSmall`
+    display: none;
+  `};
 `
 
 const Title = styled.a`
@@ -230,7 +237,8 @@ export default function Header() {
 
   const { data: userEthBalance } = useBalance({
     address,
-    chainId: ChainId.ARBITRUM_NOVA,
+    chainId: chain?.id,
+    enabled: Boolean(chain && address),
   })
 
   const { darkMode, toggleDarkMode } = useDarkMode()
@@ -281,16 +289,22 @@ export default function Header() {
             {address && !chain?.unsupported ? (
               <BalanceText>
                 <NetworkLogo
-                  src={NovaLogo.src}
-                  width={NovaLogo.width}
-                  height={NovaLogo.height}
+                  src={SUPPORTED_NETWORK_INFO[chain?.id as ChainId].image.src}
+                  width={
+                    SUPPORTED_NETWORK_INFO[chain?.id as ChainId].image.width
+                  }
+                  height={
+                    SUPPORTED_NETWORK_INFO[chain?.id as ChainId].image.height
+                  }
                   alt="nova"
                 />
-                {Amount.fromRawAmount(
-                  Native.onChain(ChainId.ARBITRUM_NOVA),
-                  userEthBalance?.value ?? 0n
-                ).toSignificant(4)}{" "}
-                {userEthBalance?.symbol}
+                <Balance>
+                  {Amount.fromRawAmount(
+                    Native.onChain(ChainId.ARBITRUM_NOVA),
+                    userEthBalance?.value ?? 0n
+                  ).toSignificant(4)}{" "}
+                  {userEthBalance?.symbol}
+                </Balance>
               </BalanceText>
             ) : null}
             <Web3Status />
