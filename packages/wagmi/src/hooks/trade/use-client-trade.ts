@@ -171,9 +171,37 @@ export const useClientTrade = (variables: UseTradeParams) => {
           [LiquidityProviders.ArbSwap]
         )
 
+        const uniRoute = Router.findBestRoute(
+          poolsCodeMap,
+          chainId,
+          fromToken,
+          amount.quotient,
+          toToken,
+          Number(feeData.gasPrice),
+          100,
+          [LiquidityProviders.UniSwapV3]
+        )
+
+        const quickRoute = Router.findBestRoute(
+          poolsCodeMap,
+          chainId,
+          fromToken,
+          amount.quotient,
+          toToken,
+          Number(feeData.gasPrice),
+          100,
+          [LiquidityProviders.QuickSwapV2, LiquidityProviders.QuickSwapV3]
+        )
+
         const bestSingleRoute = getBetterRouteExactIn(
-          getBetterRouteExactIn(sushiRoute, rcpRoute),
-          arbRoute
+          getBetterRouteExactIn(
+            getBetterRouteExactIn(
+              getBetterRouteExactIn(sushiRoute, rcpRoute),
+              arbRoute
+            ),
+            uniRoute
+          ),
+          quickRoute
         )
 
         bestSingleDex =
@@ -181,7 +209,11 @@ export const useClientTrade = (variables: UseTradeParams) => {
             ? "Sushi"
             : bestSingleRoute === rcpRoute
             ? "RCP"
-            : "Arb"
+            : bestSingleRoute === arbRoute
+            ? "Arb"
+            : bestSingleRoute === uniRoute
+            ? "Uni"
+            : "Quick"
 
         bestSingleAmountOut = Amount.fromRawAmount(
           toToken,
@@ -192,7 +224,7 @@ export const useClientTrade = (variables: UseTradeParams) => {
           route.amountOutBI > bestSingleRoute.amountOutBI
             ? ((route.amountOutBI - bestSingleRoute.amountOutBI) * 3000n) /
                 10000n +
-              (bestSingleRoute.amountOutBI * 30n) / 10000n
+              (bestSingleRoute.amountOutBI * 100n) / 10000n
             : (bestSingleRoute.amountOutBI * 100n) / 10000n
 
         feeAmount = Amount.fromRawAmount(toToken, feeAmountBI)
@@ -251,6 +283,8 @@ export const useClientTrade = (variables: UseTradeParams) => {
         // const overrides = fromToken.isNative && writeArgs?.[1] ? { value: BigNumber.from(writeArgs?.[1]) } : undefined
         let value =
           fromToken.isNative && writeArgs?.[1] ? writeArgs[1] : undefined
+
+        console.log(route)
 
         return new Promise((res) =>
           setTimeout(
