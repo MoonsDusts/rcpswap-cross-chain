@@ -1,5 +1,5 @@
 import { AddressZero } from "@ethersproject/constants"
-import { BigNumber, BytesLike, utils } from "ethers"
+import { BigNumber, BytesLike } from "ethers"
 import { ChainId } from "../../constants"
 import { TokenAmount } from "../../entities"
 import { onchainSwap } from "./onchainSwap"
