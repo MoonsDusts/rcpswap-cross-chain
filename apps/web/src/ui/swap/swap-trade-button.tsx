@@ -543,6 +543,8 @@ export default function SwapTradeButton() {
             ? "Amount is too low"
             : (symbiosisError as any)?.code === ErrorCode.AMOUNT_TOO_HIGH
             ? "Amount is too high"
+            : (symbiosisError as any)?.message?.indexOf("limit reached")
+            ? "Limit reached, try again later"
             : "Invalid Trade"
           : undefined
       }
