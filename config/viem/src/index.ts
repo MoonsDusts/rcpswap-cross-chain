@@ -1,8 +1,8 @@
 import { ChainId } from "rcpswap/chain"
 import { http, type PublicClientConfig } from "viem"
-import { arbitrum, arbitrumNova, polygon } from "viem/chains"
+import { arbitrum, arbitrumNova, polygon, bsc, avalanche } from "viem/chains"
 
-export { arbitrumNova, polygon }
+export { arbitrumNova, polygon, arbitrum, bsc, avalanche }
 
 const drpcId = process.env["DRPC_ID"] || process.env["NEXT_PUBLIC_DRPC_ID"]
 
@@ -22,6 +22,16 @@ export const config: Record<ChainId, PublicClientConfig> = {
     transport: http(
       `https://arbitrum.llamarpc.com`
       // `https://lb.drpc.org/ogrpc?network=arbitrum&dkey=${drpcId}`
+    ),
+  },
+  [ChainId.BSC]: {
+    chain: bsc,
+    transport: http(`https://lb.drpc.org/ogrpc?network=bsc&dkey=${drpcId}`),
+  },
+  [ChainId.AVALANCHE]: {
+    chain: avalanche,
+    transport: http(
+      `https://lb.drpc.org/ogrpc?network=avalanche&dkey=${drpcId}`
     ),
   },
 } as const

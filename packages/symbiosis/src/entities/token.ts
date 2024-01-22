@@ -86,6 +86,20 @@ export function tokenEquals(tokenA: Token, tokenB: Token): boolean {
 }
 
 export const WETH = {
+  [ChainId.BSC]: new Token({
+    chainId: ChainId.BSC,
+    address: "0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c",
+    decimals: 18,
+    symbol: "WBNB",
+    isNative: false,
+    name: "Wrapped BNB",
+    icons: {
+      large:
+        "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/binance/info/logo.png",
+      small:
+        "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/binance/info/logo.png",
+    },
+  }),
   [ChainId.MATIC_MAINNET]: new Token({
     chainId: ChainId.MATIC_MAINNET,
     address: "0x0d500b1d8e8ef31e21c99d1db9a6444d3adf1270",
@@ -134,6 +148,18 @@ export const WETH = {
     icons: {
       small: "https://s2.coinmarketcap.com/static/img/coins/64x64/1027.png",
       large: "https://s2.coinmarketcap.com/static/img/coins/64x64/1027.png",
+    },
+  }),
+  [ChainId.AVALANCHE]: new Token({
+    chainId: ChainId.AVALANCHE,
+    address: "0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7",
+    decimals: 18,
+    symbol: "WAVAX",
+    isNative: false,
+    name: "Wrapped AVAX",
+    icons: {
+      small: "https://s2.coinmarketcap.com/static/img/coins/64x64/9462.png",
+      large: "https://s2.coinmarketcap.com/static/img/coins/64x64/9462.png",
     },
   }),
 }

@@ -4,9 +4,11 @@ import { parseUnits } from "viem"
 import { ChainId } from "rcpswap/chain"
 
 const COINGECKO_TERMINAL_CHAIN_ID: { [chainId in ChainId]: string } = {
+  [ChainId.BSC]: "bsc",
+  [ChainId.POLYGON]: "polygon_pos",
   [ChainId.ARBITRUM_ONE]: "arbitrum",
   [ChainId.ARBITRUM_NOVA]: "arbitrum_nova",
-  [ChainId.POLYGON]: "polygon_pos",
+  [ChainId.AVALANCHE]: 'avax'
 }
 
 interface UsePrice {

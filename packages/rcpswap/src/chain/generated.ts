@@ -1,5 +1,22 @@
 export default [
   {
+    chainId: 56,
+    explorers: [
+      {
+        name: "bscscan",
+        url: "https://bscscan.com",
+        standard: "EIP3091",
+      },
+    ],
+    nativeCurrency: {
+      name: "BNB Chain Native Token",
+      symbol: "BNB",
+      decimals: 18,
+    },
+    name: "BNB Smart Chain Mainnet",
+    shortName: "bnb",
+  },
+  {
     chainId: 137,
     explorers: [
       {
@@ -73,5 +90,22 @@ export default [
         },
       ],
     },
+  },
+  {
+    chainId: 43114,
+    explorers: [
+      {
+        name: "snowtrace",
+        url: "https://snowtrace.io",
+        standard: "EIP3091",
+      },
+    ],
+    nativeCurrency: {
+      name: "Avalanche",
+      symbol: "AVAX",
+      decimals: 18,
+    },
+    name: "Avalanche C-Chain",
+    shortName: "avax",
   },
 ] as const

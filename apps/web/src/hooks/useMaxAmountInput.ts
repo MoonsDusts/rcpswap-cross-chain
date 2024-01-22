@@ -7,6 +7,8 @@ const feeAmount = {
   [ChainId.ARBITRUM_NOVA]: parseEther("0.0005"),
   [ChainId.POLYGON]: parseEther("0.25"),
   [ChainId.ARBITRUM_ONE]: parseEther("0.0005"),
+  [ChainId.BSC]: parseEther("0.008"),
+  [ChainId.AVALANCHE]: parseEther("0.02"),
 }
 
 const useMaxAmountInput = ({

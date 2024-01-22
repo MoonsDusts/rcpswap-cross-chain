@@ -1,5 +1,5 @@
 import { RToken, UniV3Pool } from "@rcpswap/tines"
-import { FeeAmount, TICK_SPACINGS, computePoolAddress } from "@rcpswap/v3-sdk"
+import { computePoolAddress } from "@rcpswap/v3-sdk"
 import { erc20Abi, tickLensAbi } from "rcpswap/abi"
 import { ChainId } from "rcpswap/chain"
 import { Currency, Token, Type } from "rcpswap/currency"
@@ -9,6 +9,27 @@ import { getCurrencyCombinations } from "../getCurrencyCombinations"
 import type { PoolCode } from "../pools/PoolCode"
 import { UniV3PoolCode } from "../pools/UniV3Pool"
 import { LiquidityProvider } from "./LiquidityProvider"
+
+enum FeeAmount {
+  /** 0.01% */
+  LOWEST = 100,
+  /** 0.1% */
+  LOW = 500,
+  /** 0.25% */
+  MEDIUM = 2500,
+  /** 1% */
+  HIGH = 10000,
+}
+
+/**
+ * The default factory tick spacings by fee amount.
+ */
+const TICK_SPACINGS: { [_amount in FeeAmount]: number } = {
+  [FeeAmount.LOWEST]: 1,
+  [FeeAmount.LOW]: 10,
+  [FeeAmount.MEDIUM]: 50,
+  [FeeAmount.HIGH]: 200,
+}
 
 interface StaticPool {
   address: Address
@@ -40,7 +61,7 @@ const bitmapIndex = (tick: number, tickSpacing: number) => {
 
 type PoolFilter = { has: (arg: string) => boolean }
 
-export abstract class UniswapV3BaseProvider extends LiquidityProvider {
+export abstract class PancakeSwapV3BaseProvider extends LiquidityProvider {
   poolsByTrade: Map<string, string[]> = new Map()
   pools: Map<string, PoolCode> = new Map()
 

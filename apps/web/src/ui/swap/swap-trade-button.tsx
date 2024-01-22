@@ -82,6 +82,8 @@ export default function SwapTradeButton() {
 
   const trade = data as UseTradeReturn
 
+  console.log(trade)
+
   const {
     data: symbiosis,
     error: symbiosisError,

@@ -22,6 +22,18 @@ export class Chain {
 
 export const chains: Chain[] = [
   new Chain({
+    id: ChainId.BSC,
+    name: "BNB",
+    disabled: false,
+    explorer: "https://bscscan.com",
+    icons: {
+      small:
+        "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/smartchain/info/logo.png",
+      large:
+        "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/smartchain/info/logo.png",
+    },
+  }),
+  new Chain({
     id: ChainId.MATIC_MAINNET,
     name: "Polygon",
     disabled: false,
@@ -63,6 +75,18 @@ export const chains: Chain[] = [
     icons: {
       small: "https://s2.coinmarketcap.com/static/img/coins/64x64/11841.png",
       large: "https://s2.coinmarketcap.com/static/img/coins/64x64/11841.png",
+    },
+  }),
+  new Chain({
+    id: ChainId.AVALANCHE,
+    name: "Avalanche",
+    disabled: false,
+    explorer: "https://snowtrace.io",
+    icons: {
+      small:
+        "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/avalanchex/info/logo.png",
+      large:
+        "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/avalanchex/info/logo.png",
     },
   }),
 ]

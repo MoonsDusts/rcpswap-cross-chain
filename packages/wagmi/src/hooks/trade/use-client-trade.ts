@@ -113,7 +113,7 @@ export const useClientTrade = (variables: UseTradeParams) => {
         toToken,
         Number(feeData.gasPrice),
         maxFlowNumber,
-        [LiquidityProviders.CamelotSwapV3]
+        providers
       )
 
       let feeAmount: Amount<Type>
@@ -121,7 +121,7 @@ export const useClientTrade = (variables: UseTradeParams) => {
       let bestSingleAmountOut: Amount<Type>
       let bestSingleDex: string
 
-      if (feeEnabled && route.amountOutBI > 0n) {
+      if (feeEnabled && route.amountOutBI > 0n && route.legs.length > 1) {
         const sushiTokens = [
           WNATIVE[ChainId.ARBITRUM_NOVA],
           USDC[ChainId.ARBITRUM_NOVA],
@@ -171,6 +171,17 @@ export const useClientTrade = (variables: UseTradeParams) => {
           [LiquidityProviders.ArbSwap]
         )
 
+        const biRoute = Router.findBestRoute(
+          poolsCodeMap,
+          chainId,
+          fromToken,
+          amount.quotient,
+          toToken,
+          Number(feeData.gasPrice),
+          1,
+          [LiquidityProviders.BiSwap]
+        )
+
         const uniRoute = Router.findBestRoute(
           poolsCodeMap,
           chainId,
@@ -204,18 +215,63 @@ export const useClientTrade = (variables: UseTradeParams) => {
           [LiquidityProviders.CamelotSwapV2, LiquidityProviders.CamelotSwapV3]
         )
 
+        const pancakeRoute = Router.findBestRoute(
+          poolsCodeMap,
+          chainId,
+          fromToken,
+          amount.quotient,
+          toToken,
+          Number(feeData.gasPrice),
+          100,
+          [LiquidityProviders.PancakeSwapV2, LiquidityProviders.PancakeSwapV3]
+        )
+
+        const traderJoeRoute = Router.findBestRoute(
+          poolsCodeMap,
+          chainId,
+          fromToken,
+          amount.quotient,
+          toToken,
+          Number(feeData.gasPrice),
+          1,
+          [LiquidityProviders.TraderJoe]
+        )
+
+        const pangolinSwap = Router.findBestRoute(
+          poolsCodeMap,
+          chainId,
+          fromToken,
+          amount.quotient,
+          toToken,
+          Number(feeData.gasPrice),
+          1,
+          [LiquidityProviders.PangolinSwap]
+        )
+
         const bestSingleRoute = getBetterRouteExactIn(
           getBetterRouteExactIn(
             getBetterRouteExactIn(
               getBetterRouteExactIn(
-                getBetterRouteExactIn(sushiRoute, rcpRoute),
-                arbRoute
+                getBetterRouteExactIn(
+                  getBetterRouteExactIn(
+                    getBetterRouteExactIn(
+                      getBetterRouteExactIn(
+                        getBetterRouteExactIn(sushiRoute, rcpRoute),
+                        arbRoute
+                      ),
+                      uniRoute
+                    ),
+                    quickRoute
+                  ),
+                  camletRoute
+                ),
+                biRoute
               ),
-              uniRoute
+              pancakeRoute
             ),
-            quickRoute
+            traderJoeRoute
           ),
-          camletRoute
+          pangolinSwap
         )
 
         bestSingleDex =
@@ -229,7 +285,15 @@ export const useClientTrade = (variables: UseTradeParams) => {
             ? "Uni"
             : bestSingleRoute === quickRoute
             ? "Quick"
-            : "Camelot"
+            : bestSingleRoute === biRoute
+            ? "Bi"
+            : bestSingleRoute === camletRoute
+            ? "Camelot"
+            : bestSingleRoute === pancakeRoute
+            ? "Pancake"
+            : bestSingleRoute === traderJoeRoute
+            ? "TraderJoe"
+            : "Pangolin"
 
         bestSingleAmountOut = Amount.fromRawAmount(
           toToken,
@@ -245,8 +309,6 @@ export const useClientTrade = (variables: UseTradeParams) => {
 
         feeAmount = Amount.fromRawAmount(toToken, feeAmountBI)
       }
-
-      console.log(route)
 
       let args = undefined
 
@@ -309,7 +371,9 @@ export const useClientTrade = (variables: UseTradeParams) => {
                 swapPrice: amountOut.greaterThan(0n)
                   ? new Price({
                       baseAmount: amount,
-                      quoteAmount: amountOut,
+                      quoteAmount: amountOut.subtract(
+                        feeAmount ?? Amount.fromRawAmount(toToken, 0)
+                      ),
                     })
                   : undefined,
                 priceImpact: route.priceImpact
