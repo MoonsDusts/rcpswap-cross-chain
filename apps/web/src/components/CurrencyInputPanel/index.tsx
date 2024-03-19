@@ -264,7 +264,7 @@ export default function CurrencyInputPanel({
 
   const impact =
     totalPrice && otherTotalPrice && otherTotalPrice.greaterThan("0")
-      ? parseFloat(
+      ? Math.max(0, parseFloat(
           (
             ((parseFloat(totalPrice.toExact()) +
               parseFloat(feeTotalPrice?.toExact() ?? "0")) /
@@ -272,7 +272,7 @@ export default function CurrencyInputPanel({
               1) *
             100
           ).toFixed(2)
-        )
+        ) - 1, 0)
       : undefined
 
   return (
